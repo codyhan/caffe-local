@@ -22,13 +22,11 @@ class Classifier {
  public:
   Classifier(const string& model_file,
              const string& trained_file,
-             const string& mean_file,
              const string& label_file);
 
   std::vector<Prediction> Classify(const cv::Mat& img, int N = 5);
 
  private:
-  void SetMean(const string& mean_file);
 
   std::vector<float> Predict(const cv::Mat& img);
 
@@ -47,7 +45,6 @@ class Classifier {
 
 Classifier::Classifier(const string& model_file,
                        const string& trained_file,
-                       const string& mean_file,
                        const string& label_file) {
 #ifdef CPU_ONLY
   Caffe::set_mode(Caffe::CPU);
@@ -62,14 +59,11 @@ Classifier::Classifier(const string& model_file,
   CHECK_EQ(net_->num_inputs(), 1) << "Network should have exactly one input.";
   CHECK_EQ(net_->num_outputs(), 1) << "Network should have exactly one output.";
 
-  Blob<float>* input_layer = net_->input_blobs()[0];
-  num_channels_ = input_layer->channels();
+//  Blob<float>* input_layer = net_->input_blobs()[0];
+  num_channels_ = 1;
   CHECK(num_channels_ == 3 || num_channels_ == 1)
     << "Input layer should have 1 or 3 channels.";
-  input_geometry_ = cv::Size(input_layer->width(), input_layer->height());
-
-  /* Load the binaryproto mean file. */
-  SetMean(mean_file);
+  input_geometry_ = cv::Size(128, 32);
 
   /* Load labels. */
   std::ifstream labels(label_file.c_str());
@@ -79,6 +73,8 @@ Classifier::Classifier(const string& model_file,
     labels_.push_back(string(line));
 
   Blob<float>* output_layer = net_->output_blobs()[0];
+  std::cout<<"out put size :"<< output_layer->channels()<<std::endl;
+  std::cout<<"label size :"<< labels_.size()<<std::endl;
   CHECK_EQ(labels_.size(), output_layer->channels())
     << "Number of labels is different from the output layer dimension.";
 }
@@ -108,43 +104,14 @@ std::vector<Prediction> Classifier::Classify(const cv::Mat& img, int N) {
   N = std::min<int>(labels_.size(), N);
   std::vector<int> maxN = Argmax(output, N);
   std::vector<Prediction> predictions;
+
+
   for (int i = 0; i < N; ++i) {
     int idx = maxN[i];
     predictions.push_back(std::make_pair(labels_[idx], output[idx]));
   }
 
   return predictions;
-}
-
-/* Load the mean file in binaryproto format. */
-void Classifier::SetMean(const string& mean_file) {
-  BlobProto blob_proto;
-  ReadProtoFromBinaryFileOrDie(mean_file.c_str(), &blob_proto);
-
-  /* Convert from BlobProto to Blob<float> */
-  Blob<float> mean_blob;
-  mean_blob.FromProto(blob_proto);
-  CHECK_EQ(mean_blob.channels(), num_channels_)
-    << "Number of channels of mean file doesn't match input layer.";
-
-  /* The format of the mean file is planar 32-bit float BGR or grayscale. */
-  std::vector<cv::Mat> channels;
-  float* data = mean_blob.mutable_cpu_data();
-  for (int i = 0; i < num_channels_; ++i) {
-    /* Extract an individual channel. */
-    cv::Mat channel(mean_blob.height(), mean_blob.width(), CV_32FC1, data);
-    channels.push_back(channel);
-    data += mean_blob.height() * mean_blob.width();
-  }
-
-  /* Merge the separate channels into a single image. */
-  cv::Mat mean;
-  cv::merge(channels, mean);
-
-  /* Compute the global mean pixel value and create a mean image
-   * filled with this value. */
-  cv::Scalar channel_mean = cv::mean(mean);
-  mean_ = cv::Mat(input_geometry_, mean.type(), channel_mean);
 }
 
 std::vector<float> Classifier::Predict(const cv::Mat& img) {
@@ -162,7 +129,7 @@ std::vector<float> Classifier::Predict(const cv::Mat& img) {
   net_->Forward();
 
   /* Copy the output layer to a std::vector */
-  Blob<float>* output_layer = net_->output_blobs()[0];
+  shared_ptr<caffe::Blob<float> > output_layer = net_->blob_by_name("fc1");
   const float* begin = output_layer->cpu_data();
   const float* end = begin + output_layer->channels();
   return std::vector<float>(begin, end);
@@ -227,7 +194,7 @@ void Classifier::Preprocess(const cv::Mat& img,
 }
 
 int main(int argc, char** argv) {
-  if (argc != 6) {
+  if (argc != 5) {
     std::cerr << "Usage: " << argv[0]
               << " deploy.prototxt network.caffemodel"
               << " mean.binaryproto labels.txt img.jpg" << std::endl;
@@ -238,11 +205,11 @@ int main(int argc, char** argv) {
 
   string model_file   = argv[1];
   string trained_file = argv[2];
-  string mean_file    = argv[3];
-  string label_file   = argv[4];
-  Classifier classifier(model_file, trained_file, mean_file, label_file);
+  string label_file   = argv[3];
+  
+  Classifier classifier(model_file, trained_file, label_file);
 
-  string file = argv[5];
+  string file = argv[4];
 
   std::cout << "---------- Prediction for "
             << file << " ----------" << std::endl;

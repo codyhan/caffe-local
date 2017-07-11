@@ -167,6 +167,14 @@ class Caffe {
   inline static void set_multiprocess(bool val) { Get().multiprocess_ = val; }
   inline static bool root_solver() { return Get().solver_rank_ == 0; }
 
+  inline static double get_step_ratio() { return Get().step_ratio; }
+
+  inline static void set_step_ratio(double ratio) { Get().step_ratio = ratio; }
+
+  inline static void set_time_step(int step) { Get().step = step; }
+
+  inline static int get_time_step() { return Get().step; }
+
  protected:
 #ifndef CPU_ONLY
   cublasHandle_t cublas_handle_;
@@ -180,6 +188,8 @@ class Caffe {
   int solver_count_;
   int solver_rank_;
   bool multiprocess_;
+  double step_ratio;
+  int step ;
 
  private:
   // The private constructor to avoid duplicate instantiation.
@@ -189,5 +199,38 @@ class Caffe {
 };
 
 }  // namespace caffe
+
+
+namespace RPN{
+    struct abox
+    {
+        float x1;
+        float y1;
+        float x2;
+        float y2;
+        float score;
+        bool operator <(const abox&tmp) const{
+            return score < tmp.score;
+        }
+    };
+	cv::Mat bbox_tranform_inv(cv::Mat local_anchors, cv::Mat boxs_delta);
+	void nms(std::vector<abox> &input_boxes, float nms_thresh);
+	
+}
+
+namespace RPNTEXT{
+    struct abox
+    {
+        float x1;
+        float y1;
+        float x2;
+        float y2;
+        float score;
+        bool operator <(const abox&tmp) const{
+            return score < tmp.score;
+        }
+    };
+	void nms(std::vector<abox> &input_boxes, float nms_thresh);
+}
 
 #endif  // CAFFE_COMMON_HPP_

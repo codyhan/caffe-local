@@ -43,6 +43,8 @@ void DropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   } else {
     caffe_copy(bottom[0]->count(), bottom_data, top_data);
   }
+
+  
 }
 
 template <typename Dtype>

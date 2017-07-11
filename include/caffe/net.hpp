@@ -336,6 +336,7 @@ class Net {
   vector<Callback*> before_backward_;
   vector<Callback*> after_backward_;
 
+
 DISABLE_COPY_AND_ASSIGN(Net);
 };
 

@@ -9,6 +9,9 @@
 #include "caffe/layers/data_layer.hpp"
 #include "caffe/util/benchmark.hpp"
 
+#include "caffe/net.hpp"
+
+
 namespace caffe {
 
 template <typename Dtype>
@@ -54,6 +57,7 @@ void DataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
       this->prefetch_[i]->label_.Reshape(label_shape);
     }
   }
+
 }
 
 template <typename Dtype>
